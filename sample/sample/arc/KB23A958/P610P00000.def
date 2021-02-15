@@ -1,0 +1,14 @@
+//SQL モジュール
+//種別	ファイル名	元ファイルフォルダ
+SQL	DT_WEB_TP0030110_T.sql	SQL
+SQL	P0060910.sql	SQL
+SQL	P0061220.sql	SQL
+SQL	P0110030.sql	SQL
+
+//WEB モジュール
+//種別	ファイル名	適用区分	適用先フォルダ	元ファイルフォルダ
+WEB	P001M001.aspx	R	PE\main	Aspx\PE\main
+WEB	P001M204.aspx	R	PE\main	Aspx\PE\main
+WEB	P001M404.aspx	R	PE\main	Aspx\PE\main
+WEB	P003M063.aspx	R	PE\main	Aspx\PE\main
+WEB	P003M068.aspx	R	PE\main	Aspx\PE\main
