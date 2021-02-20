@@ -28,8 +28,6 @@ def unzip(file_list, password, expansions):
 
 # create Excel file(output)
 
-
-
 # init
 if __name__ == '__main__':
     _comp_extension = 'zip'
