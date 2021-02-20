@@ -1,84 +1,48 @@
 import glob
 import os
 import zipfile
-from openpyxl import load_workbook
 
+# get zip file path list
+def get_path_list(dir, extension):
+    _path_list = glob.glob(dir + f'\\**.{extension}', recursive=True)
+    return _path_list
 
-# ファイル展開処理
-def unzip(filepath, extract_path, password):
-    with zipfile.ZipFile(filepath, 'r') as zip_file:
-        for fileinfo in zip_file.infolist():
-            fileinfo.filename = fileinfo.filename.encode('cp437').decode('cp932')
-            zip_file.extract(fileinfo ,path=extract_path, pwd=password.encode())
+# unzip compressed files
+def unzip(file_list, password, expansions):
+    _password = bytes(password,encoding='utf-8')
 
-# Excelタイプ
-def load_excel_data(xlfile, sheetname):
-    wb = load_workbook(filename = xlfile)
-    xlsheet = wb[sheetname]
-    d = xlsheet.max_column
-    print(d)
+    try:
+        for file in file_list:
+            with zipfile.ZipFile(file, 'r') as zip_file:
+                for file in zip_file.infolist():
+                    if file.filename.endswith('.xlsx') | file.filename.endswith('.txt'):
+                        file.filename = file.filename.encode('cp437').decode('cp932')
 
-# テキストタイプ
-def read_txt(path, filename):
+                    zip_file.extract(file, path=expansions, pwd=_password)
+    except Exception as error:
+        return error
 
-    KEY_OVERVIEW = '＜現象内容＞'
-    KEY_CAUSE_RESPONSE = '＜原因及び対応策＞'
-    file_path = os.path.join(path,filename)
+# read text
 
+# red Excel
 
-    if os.path.exists(file_path):
-        with open(file_path, 'r', encoding='utf-8') as file:
-            _first_line = file.readline()
-
-            # 管理番号取得
-            _manage_number_posi = _first_line.find('＞')
-            _manage_number = _first_line[:_manage_number_posi].strip('＜')
-
-            # 通知種別取得
-            _notice_type_posi_start = _first_line.find('【') + 1
-            _notice_type_posi_end = _first_line.find('】')
-            _notice_type = _first_line[_notice_type_posi_start:_notice_type_posi_end]
-
-            # 現象内容取得
-            _overview_start = 0
-            _overview_end = 0
-            _overview = ''
-            # for line in file.readlines():
-            #     if line in KEY_OVERVIEW:
-            #         _overview_start = line.find(KEY_OVERVIEW)
-            #     else:
-            #         return 'irregular format text.overview keyword is not found'
-
-            #     if line in KEY_CAUSE_RESPONSE:
-            #         _overview_end = line.find(KEY_CAUSE_RESPONSE)
-            #     else:
-            #         return 'irregular format text.cause and response  keyword is not found'
-            print('*＜現象内容＞*' in file.readlines())
-
-
-    else:
-        return 'file not found.'
+# create Excel file(output)
 
 
 
+# init
 if __name__ == '__main__':
-    _base_path = r'D:\work\venv\notisumma\sample'
-    _extract_path = r'.\\ext'
+    _comp_extension = 'zip'
+    _msg_extension = 'txt'
+    _xl_extension = 'xlsx'
+    _dl_zip_dirname = 'sample' 
+    
+    _current_dir = os.getcwd()
+    _zip_dir = os.path.join(_current_dir, _dl_zip_dirname)
+
+    zip_path_list = get_path_list(_zip_dir, _comp_extension)
+
+    _expansions = 'decompress'
     _password = 'password'
 
-    # 拡張子が"zip"であるファイル一覧を取得
-    zip_path_list = glob.glob(f'{_base_path}\**\*.zip',recursive=True)
-
-    for f_path in zip_path_list:
-        unzip(f_path, _extract_path, _password)
-
-    # # Excelデータ読み取り
-    # _xlfile = r"D:\work\venv\notisumma\ext\sample\不具合情報一覧.xlsx"
-    # _sheetname = '不具合情報一覧'
-    # load_excel_data(_xlfile, _sheetname)
-
-    # # テキストファイル読み取り
-    # _dir = r'D:\work\venv\notisumma\ext\sample_txt'
-    # filename = '不具合情報.txt'
-    # r = read_txt(_dir,filename)
-    # print(r)
+    print(unzip(zip_path_list, _password, _expansions))

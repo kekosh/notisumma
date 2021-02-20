@@ -1,2 +1,4 @@
 ext\\*
 sample\\*
+
+/sample/
