@@ -16,59 +16,96 @@ def get_file_path_list(dir, *args):
 def unzip(file_list, password, expansions_target):
     _password = bytes(password,encoding='utf-8')
 
-    try:
-        for file in file_list:
-            with zipfile.ZipFile(file, 'r') as zip_file:
-                for file in zip_file.infolist():
-                    if file.filename.endswith('.xlsx') | file.filename.endswith('.txt'):
-                        file.filename = file.filename.encode('cp437').decode('cp932')
+    for file in file_list:
+        with zipfile.ZipFile(file, 'r') as zip_file:
+            for file in zip_file.infolist():
+                try:
+                    print(file.filename)
+                    file.filename = file.filename.encode('cp437').decode('cp932')
+                    print(file.filename)
+                except UnicodeDecodeError as unideco_err:
+                    print(unideco_err)
 
-                    zip_file.extract(file, path=expansions_target, pwd=_password)
-    except Exception as error:
-        return error
+                zip_file.extract(file, path=expansions_target, pwd=_password)
+            return
 
 # read text
 def read_text(file_path):
     dict_data = {'title':'',
-    'type':'',
+    'category':'',
     'version':'',
     'product':'',
     'description:':'',
     'bugfix':''
     }
 
-    with open(file_path, encoding='shift-jis') as opend_file:
+    LIST_INFO_CATEGORY = ['不具合情報','共通情報']
+    AFTER_WORD_INFO_KEY = '(Ver'
+
+    with open(file_path, encoding='shift-jis', errors='strict') as opend_file:
         _title_range_flg = False
+        _version_flg = False
 
-        for row in opend_file.readlines():
-            row_striped = row.strip()
+        try:
+            for row in opend_file.readlines():
+                row_striped = row.strip()
 
-            # title
-            if row_striped.startswith('■' + '-' * 20) & row_striped.endswith('-' * 20 + '■'):
-                if _title_range_flg is False:
-                    _title_range_flg = True
+                # title
+                if row_striped.startswith('■' + '-' * 20) & row_striped.endswith('-' * 20 + '■'):
+                    if _title_range_flg is False:
+                        _title_range_flg = True
+                        continue
+                    else:
+                        _title_range_flg = False
+                        continue
+
+                if _title_range_flg:
+                    dict_data['title'] = dict_data['title']  + row_striped
+
+                    # product
+                    # category
+                    for category in LIST_INFO_CATEGORY:
+
+                        _category_name = '【' + category + '】'
+                        if _category_name in row_striped:
+
+                            if category == '不具合情報':
+                                _word_top = row_striped.find(_category_name) + 7
+                            else:
+                                _word_top = row_striped.find(_category_name) + 6 
+
+                            _word_last = row_striped.find(AFTER_WORD_INFO_KEY)
+
+                            dict_data['category'] = category
+                            dict_data['product'] = row_striped[_word_top:_word_last]
+
+                            continue
+
+                
+
+
+
+                # version
+                if row_striped.startswith('＜対象バージョン＞'):
+                    _version_flg = True
                     continue
-                else:
-                    _title_range_flg = False
 
-            if _title_range_flg:
-                dict_data['title'] = dict_data['title']  + row_striped
+                if _version_flg:
+                    dict_data['version'] = row_striped.replace('Ver','')
+                    _version_flg = False
+                
+                
 
-                # type
-                if '【不具合情報】' in row_striped or '【共通情報】' in row_striped:
-                    _word_top = row_striped.find('【不具合情報】') + 7
-
-
-                continue
-
-
-
-            # version
-            # product
-            # description
-            # bugfix
-        print(dict_data['title'])
-        return dict_data
+                # description
+                # bugfix
+            
+            print('category:', dict_data['category'])
+            print('title:', dict_data['title'])
+            print('product:', dict_data['product'])
+            print('version:', dict_data['version'])
+            return dict_data
+        except Exception as error:
+            print(error)
 
 # red Excel
 
