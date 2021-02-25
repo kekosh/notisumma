@@ -21,6 +21,8 @@ def unzip(file_list, password, expansions_target):
             for file in zip_file.infolist():
                 try:
                     print(file.filename)
+                    print(file.orig_filename)
+
                     file.filename = file.filename.encode('cp437').decode('cp932')
                     print(file.filename)
                 except UnicodeDecodeError as unideco_err:
@@ -126,7 +128,7 @@ if __name__ == '__main__':
         print('No zip file.')
         sys.exit()
 
-    _expansions_target = 'decompress'
+    _expansions_target = 'extract'
     _password = 'password'
 
     try:
@@ -135,7 +137,7 @@ if __name__ == '__main__':
         print(error)
         sys.exit()
     
-    # get path list of folder made by decompress function
+    # get path list of folder made by extract function
     expansions_dir_path = os.path.join(_current_dir, _expansions_target)
     exp_dir = pathlib.Path(expansions_dir_path)
     unzip_folders = [p for p in exp_dir.iterdir() if p.is_dir()]
