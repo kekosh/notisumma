@@ -20,13 +20,10 @@ def unzip(file_list, password, expansions_target):
         with zipfile.ZipFile(file, 'r') as zip_file:
             for file in zip_file.infolist():
                 try:
-                    print(file.filename)
-                    print(file.orig_filename)
-
-                    file.filename = file.filename.encode('cp437').decode('cp932')
-                    print(file.filename)
+                    file.filename = file.orig_filename.encode('cp437').decode('cp932')
                 except UnicodeDecodeError as unideco_err:
                     print(unideco_err)
+                    return
 
                 zip_file.extract(file, path=expansions_target, pwd=_password)
             return
@@ -83,10 +80,6 @@ def read_text(file_path):
 
                             continue
 
-                
-
-
-
                 # version
                 if row_striped.startswith('＜対象バージョン＞'):
                     _version_flg = True
@@ -101,10 +94,6 @@ def read_text(file_path):
                 # description
                 # bugfix
             
-            print('category:', dict_data['category'])
-            print('title:', dict_data['title'])
-            print('product:', dict_data['product'])
-            print('version:', dict_data['version'])
             return dict_data
         except Exception as error:
             print(error)
