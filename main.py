@@ -3,6 +3,8 @@ import os
 import sys
 import zipfile
 import pathlib
+import openpyxl
+import datetime as dt
 
 # get zip file path list
 def get_file_path_list(dir, *args):
@@ -13,20 +15,24 @@ def get_file_path_list(dir, *args):
     return _path_list
 
 # unzip compressed files
-def unzip(file_list, password, expansions_target):
+def unzip(file_list, password, extract_target):
     _password = bytes(password,encoding='utf-8')
 
     for file in file_list:
         with zipfile.ZipFile(file, 'r') as zip_file:
             for file in zip_file.infolist():
                 try:
+                    '''
+                    windowsでは"/"が"\"に置換されるため、「.filename」ではなく置換される前のデータが格納されている
+                    「.orig_filename」を使用。
+                    '''
                     file.filename = file.orig_filename.encode('cp437').decode('cp932')
                 except UnicodeDecodeError as unideco_err:
                     print(unideco_err)
                     return
 
-                zip_file.extract(file, path=expansions_target, pwd=_password)
-            return
+                zip_file.extract(file, path=extract_target, pwd=_password)
+
 
 # read text
 def read_text(file_path):
@@ -34,16 +40,18 @@ def read_text(file_path):
     'category':'',
     'version':'',
     'product':'',
-    'description:':'',
-    'bugfix':''
+    'description':''
     }
 
     LIST_INFO_CATEGORY = ['不具合情報','共通情報']
     AFTER_WORD_INFO_KEY = '(Ver'
 
-    with open(file_path, encoding='shift-jis', errors='strict') as opend_file:
+    with open(file_path, encoding='shift-jis', errors='strict', newline='\n') as opend_file:
         _title_range_flg = False
         _version_flg = False
+        _description_flg = False
+        _is_bugfix = False
+        _w_rows = ""
 
         try:
             for row in opend_file.readlines():
@@ -68,16 +76,18 @@ def read_text(file_path):
                         _category_name = '【' + category + '】'
                         if _category_name in row_striped:
 
+                            dict_data['category'] = category
+
                             if category == '不具合情報':
                                 _word_top = row_striped.find(_category_name) + 7
+                                _word_last = row_striped.find(AFTER_WORD_INFO_KEY)
+                                _is_bugfix = True
+
+                                dict_data['product'] = row_striped[_word_top:_word_last]
                             else:
-                                _word_top = row_striped.find(_category_name) + 6 
-
-                            _word_last = row_striped.find(AFTER_WORD_INFO_KEY)
-
-                            dict_data['category'] = category
-                            dict_data['product'] = row_striped[_word_top:_word_last]
-
+                                _is_bugfix = False
+                                dict_data['product'] = '共通'
+                            
                             continue
 
                 # version
@@ -88,12 +98,27 @@ def read_text(file_path):
                 if _version_flg:
                     dict_data['version'] = row_striped.replace('Ver','')
                     _version_flg = False
-                
-                
+                    continue
 
                 # description
-                # bugfix
-            
+                if _is_bugfix:
+                    if  row_striped.startswith('＜現象内容＞'):
+                        _w_rows += row_striped + '\n'
+                        _description_flg = True
+                        continue
+
+                    if row_striped.startswith('＜適用方法＞'):
+                        _description_flg = False
+                        break
+
+                    if _description_flg:
+                        _w_rows += row_striped + '\n'
+                else:
+                    if _title_range_flg == False:
+                        _w_rows += row_striped + '\n'
+
+            dict_data['description'] = _w_rows.strip()
+
             return dict_data
         except Exception as error:
             print(error)
@@ -108,32 +133,60 @@ if __name__ == '__main__':
     _txt_extension = 'txt'
     _xl_extension = 'xlsx'
     _dl_zip_dirname = 'sample'
+    _extract_target = 'extract'
+    _password = 'password'
     _current_dir = os.getcwd()
 
+    # zipファイル格納先パスを作成
     zip_dir = os.path.join(_current_dir, _dl_zip_dirname)
-
+    
+    # 格納されているzipファイルのパスリストを作成
     zip_paths = get_file_path_list(zip_dir, _comp_extension)
+
     if not zip_paths:
         print('No zip file.')
         sys.exit()
 
-    _expansions_target = 'extract'
-    _password = 'password'
-
+    # zipファイル展開
     try:
-        unzip(zip_paths, _password, _expansions_target)
+        unzip(zip_paths, _password, _extract_target)
     except Exception as error:
         print(error)
         sys.exit()
     
-    # get path list of folder made by extract function
-    expansions_dir_path = os.path.join(_current_dir, _expansions_target)
-    exp_dir = pathlib.Path(expansions_dir_path)
-    unzip_folders = [p for p in exp_dir.iterdir() if p.is_dir()]
+    # zipファイル展開先パスを作成
+    extract_dir_path = os.path.join(_current_dir, _extract_target)
     
+    # zipから展開されたフォルダのパスリストを作成
+    ext_dir = pathlib.Path(extract_dir_path)
+    unzip_folders = [p for p in ext_dir.iterdir() if p.is_dir()]
+    
+    list_read_data = []
     for folder in unzip_folders:
         files = get_file_path_list(str(folder),_txt_extension,_xl_extension)
         
         for file in files:
             if file.endswith('.txt'):
-                x = read_text(file)
+                list_read_data.append(read_text(file))
+    
+
+
+    # 取得したデータをExcelファイルに出力する
+    def create_xlbook(list_read_data):
+        wb = openpyxl.Workbook()
+        ws = wb.create_sheet(str(dt.date.today()),0)
+
+        row = 1
+        for data in list_read_data:
+            ws.cell(row=row,column=1,value=row)
+            ws.cell(row=row,column=2,value=dt.date.today())
+            ws.cell(row=row,column=3,value=data['title'])
+            ws.cell(row=row,column=4,value=data['product'])
+            ws.cell(row=row,column=5,value=data['category'])
+            ws.cell(row=row,column=6,value=data['version'])
+            ws.cell(row=row,column=7,value=data['description'])
+            row += 1
+
+        wb.save("test.xlsx")
+    # test
+    create_xlbook(list_read_data)
