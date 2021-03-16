@@ -1,9 +1,12 @@
+# -*- coding: utf-8 -*-
+
 import glob
 import os
 import sys
 import zipfile
 import pathlib
 import openpyxl
+import chardet
 import datetime as dt
 
 # get zip file path list
@@ -34,6 +37,17 @@ def unzip(file_list, password, extract_target):
                 zip_file.extract(file, path=extract_target, pwd=_password)
 
 
+# check encoding
+def check_file_encode(file_path):
+    enctype = 'shift-jis'
+    with open(file_path, "rb") as file:
+        char = file.read()
+        _encoding = chardet.detect(char)
+        
+        if enctype != _encoding['encoding']:
+            enctype = _encoding['encoding']
+    return enctype
+
 # read text
 def read_text(file_path):
     dict_data = {'title':'',
@@ -43,10 +57,13 @@ def read_text(file_path):
     'description':''
     }
 
-    LIST_INFO_CATEGORY = ['不具合情報','共通情報']
-    AFTER_WORD_INFO_KEY = '(Ver'
+    LIST_INFO_CATEGORY = ['不具合情報','共通情報','制度変更対応パッチ']
+    VERSION_WORD = '(Ver'
 
-    with open(file_path, encoding='shift-jis', errors='strict', newline='\n') as opend_file:
+    # データ読み込み前にバイトタイプで開いて文字コードを判定
+    enctype = check_file_encode(file_path)
+    
+    with open(file_path, encoding=enctype, errors='strict', newline='\n') as opend_file:
         _title_range_flg = False
         _version_flg = False
         _description_flg = False
@@ -71,34 +88,37 @@ def read_text(file_path):
 
                     # product
                     # category
+                    # version
                     for category in LIST_INFO_CATEGORY:
-
                         _category_name = '【' + category + '】'
                         if _category_name in row_striped:
-
-                            dict_data['category'] = category
-
                             if category == '不具合情報':
+                                dict_data['category'] = category[0:3]
                                 _word_top = row_striped.find(_category_name) + 7
-                                _word_last = row_striped.find(AFTER_WORD_INFO_KEY)
+                                _word_last = row_striped.find(VERSION_WORD)
                                 _is_bugfix = True
 
                                 dict_data['product'] = row_striped[_word_top:_word_last]
+                                
+                                _version_top = row_striped.find(VERSION_WORD)
+                                _version_last = row_striped.find(')：')
+                                dict_data['version'] = row_striped[_version_top:_version_last].replace(VERSION_WORD,'')
                             else:
-                                _is_bugfix = False
+                                dict_data['category'] = '共通情報'
                                 dict_data['product'] = '共通'
-                            
-                            continue
+                                dict_data['version'] = row_striped[row_striped.find('-')+1:row_striped.find('>')]
+                                _is_bugfix = False
+                            # continue
 
                 # version
-                if row_striped.startswith('＜対象バージョン＞'):
-                    _version_flg = True
-                    continue
+                # if row_striped.startswith('＜対象バージョン＞'):
+                #     _version_flg = True
+                #     continue
 
-                if _version_flg:
-                    dict_data['version'] = row_striped.replace('Ver','')
-                    _version_flg = False
-                    continue
+                # if _version_flg:
+                #     dict_data['version'] = row_striped.replace('Ver','')
+                #     _version_flg = False
+                #     continue
 
                 # description
                 if _is_bugfix:
@@ -164,13 +184,11 @@ if __name__ == '__main__':
     list_read_data = []
     for folder in unzip_folders:
         files = get_file_path_list(str(folder),_txt_extension,_xl_extension)
-        
+
         for file in files:
             if file.endswith('.txt'):
                 list_read_data.append(read_text(file))
-    
-
-
+                
     # 取得したデータをExcelファイルに出力する
     def create_xlbook(list_read_data):
         wb = openpyxl.Workbook()
