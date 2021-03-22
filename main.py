@@ -110,16 +110,6 @@ def read_text(file_path):
                                 _is_bugfix = False
                             # continue
 
-                # version
-                # if row_striped.startswith('＜対象バージョン＞'):
-                #     _version_flg = True
-                #     continue
-
-                # if _version_flg:
-                #     dict_data['version'] = row_striped.replace('Ver','')
-                #     _version_flg = False
-                #     continue
-
                 # description
                 if _is_bugfix:
                     if  row_striped.startswith('＜現象内容＞'):
@@ -138,8 +128,8 @@ def read_text(file_path):
                         _w_rows += row_striped + '\n'
 
             dict_data['description'] = _w_rows.strip()
-
             return dict_data
+
         except Exception as error:
             print(error)
 
@@ -156,6 +146,7 @@ if __name__ == '__main__':
     _extract_target = 'extract'
     _password = 'password'
     _current_dir = os.getcwd()
+    _base_xlfile = os.path.join(os.getcwd(),'sample\\POS関連情報.xlsx')
 
     # zipファイル格納先パスを作成
     zip_dir = os.path.join(_current_dir, _dl_zip_dirname)
@@ -190,21 +181,49 @@ if __name__ == '__main__':
                 list_read_data.append(read_text(file))
                 
     # 取得したデータをExcelファイルに出力する
-    def create_xlbook(list_read_data):
-        wb = openpyxl.Workbook()
-        ws = wb.create_sheet(str(dt.date.today()),0)
+    def create_xlbook(list_read_data,base_xlfile):
+        wb = openpyxl.load_workbook(base_xlfile)
+        ws = wb.worksheets[0]
+        
+        # 「内容」列にデータが存在する最終行を取得
+        # 「作成中」
+        _row = 5
+        while True:
+            if ws.cell(_row,7).value is None:
+                break
+            _row += 1
 
-        row = 1
-        for data in list_read_data:
-            ws.cell(row=row,column=1,value=row)
-            ws.cell(row=row,column=2,value=dt.date.today())
-            ws.cell(row=row,column=3,value=data['title'])
-            ws.cell(row=row,column=4,value=data['product'])
-            ws.cell(row=row,column=5,value=data['category'])
-            ws.cell(row=row,column=6,value=data['version'])
-            ws.cell(row=row,column=7,value=data['description'])
-            row += 1
+        d = list_read_data[1]
+        i = d['description'].split('\n')
+        
+        x = 0
+        while True:            
+            print(i[x])
 
-        wb.save("test.xlsx")
+            if x % 32 == 0:
+                print('-'*20)
+            
+            x += 1
+            if x >= len(i):
+                break
+
+        # ---------------------
+
+
+        # for data in list_read_data:
+        #     ws.cell(row=_row,column=1,value=_row)
+        #     ws.cell(row=_row,column=2,value='{0:%Y/%m/%d}'.format(dt.date.today()))
+        #     ws.cell(row=_row,column=3,value=data['title'])
+        #     ws.cell(row=_row,column=4,value=data['product'])
+        #     ws.cell(row=_row,column=5,value=data['category'])
+        #     ws.cell(row=_row,column=6,value=data['version'])
+            
+        #     #[memo] 1行最大サイズ　改行文字30　31行
+        #     ws.cell(row=_row,column=7,value=data['description'])
+
+
+        #     _row += 1
+
+        # wb.save(base_xlfile)
     # test
-    create_xlbook(list_read_data)
+    create_xlbook(list_read_data,_base_xlfile)
