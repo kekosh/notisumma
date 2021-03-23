@@ -14,7 +14,6 @@ def get_file_path_list(dir, *args):
     _path_list = []
     for extension in args:
         [_path_list.append(p) for p in glob.glob(dir + f'\\**\\*.{extension}', recursive=True)]
-
     return _path_list
 
 # unzip compressed files
@@ -84,6 +83,7 @@ def read_text(file_path):
                         continue
 
                 if _title_range_flg:
+                    # [memo]タイトル複数行の場合
                     dict_data['title'] = dict_data['title']  + row_striped
 
                     # product
@@ -108,7 +108,7 @@ def read_text(file_path):
                                 dict_data['product'] = '共通'
                                 dict_data['version'] = row_striped[row_striped.find('-')+1:row_striped.find('>')]
                                 _is_bugfix = False
-                            # continue
+                    continue
 
                 # description
                 if _is_bugfix:
@@ -150,7 +150,7 @@ if __name__ == '__main__':
 
     # zipファイル格納先パスを作成
     zip_dir = os.path.join(_current_dir, _dl_zip_dirname)
-    
+
     # 格納されているzipファイルのパスリストを作成
     zip_paths = get_file_path_list(zip_dir, _comp_extension)
 
@@ -186,44 +186,66 @@ if __name__ == '__main__':
         ws = wb.worksheets[0]
         
         # 「内容」列にデータが存在する最終行を取得
-        # 「作成中」
         _row = 5
         while True:
             if ws.cell(_row,7).value is None:
                 break
             _row += 1
 
-        d = list_read_data[1]
-        i = d['description'].split('\n')
-        
-        x = 0
-        while True:            
-            print(i[x])
-
-            if x % 32 == 0:
-                print('-'*20)
+        for data in list_read_data:
+            ws.cell(row=_row,column=1,value=_row)
+            ws.cell(row=_row,column=2,value='{0:%Y/%m/%d}'.format(dt.date.today()))
+            ws.cell(row=_row,column=3,value=data['title'])
+            ws.cell(row=_row,column=4,value=data['product'])
+            ws.cell(row=_row,column=5,value=data['category'])
+            ws.cell(row=_row,column=6,value=data['version'])
             
-            x += 1
-            if x >= len(i):
-                break
+            '''
+            1行のセルの高さ最大設定時に表示できる行数をLINES_LIMITに設定
+            (デフォルト：MS Pゴシック 11pt の場合、30行まで)
+            '''
+            LINES_LIMIT = 30
 
-        # ---------------------
+            lines = data['description'].split('\n')
+            _lines_all = len(lines)
 
+            # 内容列セル出力分割処理
+            if _lines_all > LINES_LIMIT :
+                _line_cnt, _last_line_cnt = 0, 0
 
-        # for data in list_read_data:
-        #     ws.cell(row=_row,column=1,value=_row)
-        #     ws.cell(row=_row,column=2,value='{0:%Y/%m/%d}'.format(dt.date.today()))
-        #     ws.cell(row=_row,column=3,value=data['title'])
-        #     ws.cell(row=_row,column=4,value=data['product'])
-        #     ws.cell(row=_row,column=5,value=data['category'])
-        #     ws.cell(row=_row,column=6,value=data['version'])
+                while True:
+                    # 行数上限単位に分割して出力
+                    if _line_cnt % LINES_LIMIT == 0 and _line_cnt != 0:
+                        ws.cell(row=_row,column=7,value='\n'.join(lines[_last_line_cnt:_line_cnt]).strip())
+                        _last_line_cnt = _line_cnt
+                        _row += 1 
+                        _line_cnt += 1
+                        continue
+
+                    _line_cnt += 1
+
+                    # 残り行数が上限に満たない場合
+                    if _lines_all % LINES_LIMIT == _lines_all - _line_cnt:
+                        ws.cell(row=_row,column=7,value='\n'.join(lines[_line_cnt:]).strip())
+                        _row += 1
+                        break
+
+                    if _line_cnt > _lines_all:
+                        break
+            else:
+                ws.cell(row=_row,column=7,value=data['description'])
+                _row += 1
+        try:
+            wb.save(base_xlfile)
+        except PermissionError:
+            raise PermissionError('ファイルにアクセスできませんでした。')
+        except Exception:
+            raise Exception('不明なエラーが発生しました。')
             
-        #     #[memo] 1行最大サイズ　改行文字30　31行
-        #     ws.cell(row=_row,column=7,value=data['description'])
-
-
-        #     _row += 1
-
-        # wb.save(base_xlfile)
     # test
-    create_xlbook(list_read_data,_base_xlfile)
+    try:
+        create_xlbook(list_read_data,_base_xlfile)
+    except Exception as exc:
+        print("oops!")
+        print(exc)
+        sys.exit()
