@@ -1,141 +1,12 @@
 # -*- coding: utf-8 -*-
-
-import glob
 import os
 import sys
-import zipfile
 import pathlib
-import openpyxl
-import chardet
-import datetime as dt
 
-# get zip file path list
-def get_file_path_list(dir, *args):
-    _path_list = []
-    for extension in args:
-        [_path_list.append(p) for p in glob.glob(dir + f'\\**\\*.{extension}', recursive=True)]
-    return _path_list
-
-# unzip compressed files
-def unzip(file_list, password, extract_target):
-    _password = bytes(password,encoding='utf-8')
-
-    for file in file_list:
-        with zipfile.ZipFile(file, 'r') as zip_file:
-            for file in zip_file.infolist():
-                try:
-                    '''
-                    windowsでは"/"が"\"に置換されるため、「.filename」ではなく置換される前のデータが格納されている
-                    「.orig_filename」を使用。
-                    '''
-                    file.filename = file.orig_filename.encode('cp437').decode('cp932')
-                except UnicodeDecodeError as unideco_err:
-                    print(unideco_err)
-                    return
-
-                zip_file.extract(file, path=extract_target, pwd=_password)
-
-
-# check encoding
-def check_file_encode(file_path):
-    enctype = 'shift-jis'
-    with open(file_path, "rb") as file:
-        char = file.read()
-        _encoding = chardet.detect(char)
-        
-        if enctype != _encoding['encoding']:
-            enctype = _encoding['encoding']
-    return enctype
-
-# read text
-def read_text(file_path):
-    dict_data = {'title':'',
-    'category':'',
-    'version':'',
-    'product':'',
-    'description':''
-    }
-
-    LIST_INFO_CATEGORY = ['不具合情報','共通情報','制度変更対応パッチ']
-    VERSION_WORD = '(Ver'
-
-    # データ読み込み前にバイトタイプで開いて文字コードを判定
-    enctype = check_file_encode(file_path)
-    
-    with open(file_path, encoding=enctype, errors='strict', newline='\n') as opend_file:
-        _title_range_flg = False
-        _version_flg = False
-        _description_flg = False
-        _is_bugfix = False
-        _w_rows = ""
-
-        try:
-            for row in opend_file.readlines():
-                row_striped = row.strip()
-
-                # title
-                if row_striped.startswith('■' + '-' * 20) & row_striped.endswith('-' * 20 + '■'):
-                    if _title_range_flg is False:
-                        _title_range_flg = True
-                        continue
-                    else:
-                        _title_range_flg = False
-                        continue
-
-                if _title_range_flg:
-                    # [memo]タイトル複数行の場合
-                    dict_data['title'] = dict_data['title']  + row_striped
-
-                    # product
-                    # category
-                    # version
-                    for category in LIST_INFO_CATEGORY:
-                        _category_name = '【' + category + '】'
-                        if _category_name in row_striped:
-                            if category == '不具合情報':
-                                dict_data['category'] = category[0:3]
-                                _word_top = row_striped.find(_category_name) + 7
-                                _word_last = row_striped.find(VERSION_WORD)
-                                _is_bugfix = True
-
-                                dict_data['product'] = row_striped[_word_top:_word_last]
-                                
-                                _version_top = row_striped.find(VERSION_WORD)
-                                _version_last = row_striped.find(')：')
-                                dict_data['version'] = row_striped[_version_top:_version_last].replace(VERSION_WORD,'')
-                            else:
-                                dict_data['category'] = '共通情報'
-                                dict_data['product'] = '共通'
-                                dict_data['version'] = row_striped[row_striped.find('-')+1:row_striped.find('>')]
-                                _is_bugfix = False
-                    continue
-
-                # description
-                if _is_bugfix:
-                    if  row_striped.startswith('＜現象内容＞'):
-                        _w_rows += row_striped + '\n'
-                        _description_flg = True
-                        continue
-
-                    if row_striped.startswith('＜適用方法＞'):
-                        _description_flg = False
-                        break
-
-                    if _description_flg:
-                        _w_rows += row_striped + '\n'
-                else:
-                    if _title_range_flg == False:
-                        _w_rows += row_striped + '\n'
-
-            dict_data['description'] = _w_rows.strip()
-            return dict_data
-
-        except Exception as error:
-            print(error)
-
-# red Excel
-
-# create Excel file(output)
+import unzip
+import sabmethods
+import readtxt
+import manageXL
 
 # init
 if __name__ == '__main__':
@@ -151,16 +22,16 @@ if __name__ == '__main__':
     # zipファイル格納先パスを作成
     zip_dir = os.path.join(_current_dir, _dl_zip_dirname)
 
+    # --------------------------------------------------------------------
     # 格納されているzipファイルのパスリストを作成
-    zip_paths = get_file_path_list(zip_dir, _comp_extension)
-
+    zip_paths = sabmethods.get_filepath_list(zip_dir,_comp_extension)
     if not zip_paths:
         print('No zip file.')
         sys.exit()
 
     # zipファイル展開
     try:
-        unzip(zip_paths, _password, _extract_target)
+        unzip.unzip(zip_paths, _password, _extract_target)
     except Exception as error:
         print(error)
         sys.exit()
@@ -174,78 +45,16 @@ if __name__ == '__main__':
     
     list_read_data = []
     for folder in unzip_folders:
-        files = get_file_path_list(str(folder),_txt_extension,_xl_extension)
+        files = sabmethods.get_filepath_list(str(folder),_txt_extension,_xl_extension)
 
         for file in files:
             if file.endswith('.txt'):
-                list_read_data.append(read_text(file))
+                list_read_data.append(readtxt.read_text(file))
                 
-    # 取得したデータをExcelファイルに出力する
-    def create_xlbook(list_read_data,base_xlfile):
-        wb = openpyxl.load_workbook(base_xlfile)
-        ws = wb.worksheets[0]
-        
-        # 「内容」列にデータが存在する最終行を取得
-        _row = 5
-        while True:
-            if ws.cell(_row,7).value is None:
-                break
-            _row += 1
-
-        for data in list_read_data:
-            ws.cell(row=_row,column=1,value=_row)
-            ws.cell(row=_row,column=2,value='{0:%Y/%m/%d}'.format(dt.date.today()))
-            ws.cell(row=_row,column=3,value=data['title'])
-            ws.cell(row=_row,column=4,value=data['product'])
-            ws.cell(row=_row,column=5,value=data['category'])
-            ws.cell(row=_row,column=6,value=data['version'])
-            
-            '''
-            1行のセルの高さ最大設定時に表示できる行数をLINES_LIMITに設定
-            (デフォルト：MS Pゴシック 11pt の場合、30行まで)
-            '''
-            LINES_LIMIT = 30
-
-            lines = data['description'].split('\n')
-            _lines_all = len(lines)
-
-            # 内容列セル出力分割処理
-            if _lines_all > LINES_LIMIT :
-                _line_cnt, _last_line_cnt = 0, 0
-
-                while True:
-                    # 行数上限単位に分割して出力
-                    if _line_cnt % LINES_LIMIT == 0 and _line_cnt != 0:
-                        ws.cell(row=_row,column=7,value='\n'.join(lines[_last_line_cnt:_line_cnt]).strip())
-                        _last_line_cnt = _line_cnt
-                        _row += 1 
-                        _line_cnt += 1
-                        continue
-
-                    _line_cnt += 1
-
-                    # 残り行数が上限に満たない場合
-                    if _lines_all % LINES_LIMIT == _lines_all - _line_cnt:
-                        ws.cell(row=_row,column=7,value='\n'.join(lines[_line_cnt:]).strip())
-                        _row += 1
-                        break
-
-                    if _line_cnt > _lines_all:
-                        break
-            else:
-                ws.cell(row=_row,column=7,value=data['description'])
-                _row += 1
-        try:
-            wb.save(base_xlfile)
-        except PermissionError:
-            raise PermissionError('ファイルにアクセスできませんでした。')
-        except Exception:
-            raise Exception('不明なエラーが発生しました。')
             
     # test
     try:
-        create_xlbook(list_read_data,_base_xlfile)
+        manageXL.create_xlbook(list_read_data,_base_xlfile)
     except Exception as exc:
-        print("oops!")
         print(exc)
         sys.exit()
