@@ -7,10 +7,7 @@ import datetime as dt
 Excelファイルのデータを読み込む
 memo:作成中
 '''
-def readxl(xlfile):
-    xlbook = openpyxl.load_workbook(xlfile)
-    xlsheets = xlbook.sheetnames
-    print(xlsheets[0])
+
 
 
 '''
