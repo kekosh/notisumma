@@ -3,6 +3,7 @@ import os
 import sys
 import pathlib
 
+import setting
 import unzip
 import sabmethods
 import readtxt
@@ -10,14 +11,14 @@ import manageXL
 
 # init
 if __name__ == '__main__':
-    _comp_extension = 'zip'
-    _txt_extension = 'txt'
-    _xl_extension = 'xlsx'
-    _dl_zip_dirname = 'sample'
-    _extract_target = 'extract'
-    _password = 'password'
+    _comp_extension = setting.COMP_EXTENSION
+    _txt_extension = setting.TXT_EXTENSION
+    _xl_extension = setting.XL_EXTENSION
+    _dl_zip_dirname = setting.DL_ZIP_DIRNAME
+    _extract_target = setting.EXTRACT_TARGET_DIRNAME
+    _password = setting.PASSWORD
     _current_dir = os.getcwd()
-    _base_xlfile = os.path.join(os.getcwd(),'sample\\POS関連情報.xlsx')
+    _base_xlfile = os.path.join(os.getcwd(), _dl_zip_dirname, setting.UPDATE_TARGET_XLFILE)
 
     # zipファイル格納先パスを作成
     zip_dir = os.path.join(_current_dir, _dl_zip_dirname)
@@ -46,6 +47,9 @@ if __name__ == '__main__':
     list_read_data = []
     for folder in unzip_folders:
         files = sabmethods.get_filepath_list(str(folder),_txt_extension,_xl_extension)
+    
+        # フォルダ内にExcelファイルが存在する場合はExcelファイルからデータを取得する
+        
 
         for file in files:
             if file.endswith('.txt'):

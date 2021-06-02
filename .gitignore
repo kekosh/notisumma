@@ -4,3 +4,4 @@ extract\\*
 /sample/
 /extract/
 /*.zip
+/__pycache__/
