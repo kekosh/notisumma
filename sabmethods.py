@@ -1,7 +1,10 @@
 # -*- coding: utf-8 -*-
+from sys import float_repr_style
 import chardet
 import glob
 import os
+
+import setting
 
 '''
 フォルダ内のファイルから指定した拡張子に該当するファイルのパスを取得する
@@ -34,22 +37,29 @@ def check_file_encode(filepath):
         
         return enctype
 
+'''
+CONCLUSION_XLFILEに設定されているファイルが存在するか確認
+'''
+def has_conclusion_file(folder):
 
-def have_xl_file(file_list):
-    for file in file_list:
-        _file_name = os.path.basename(file)
-        
-        if "不具合情報一覧.xlsx" == _file_name:
-            return file
-        
-    return ""
+    for item in folder.iterdir():
+        if item.is_file():
+            if item.name == setting.CONCLUSION_XLFILE:
+                return True        
+    next
+    return False
 
 
 # for test
 if __name__ == '__main__':
-    files = ['D:\\MyFile\\arc\\venv\\notisumma\\extract\\KB24A020\\不具合.txt', 'D:\\MyFile\\arc\\venv\\notisumma\\extract\\KB24A020\\不具合情報一.xlsx']
-    result = have_xl_file(files)
-    print(result)
+    # import pathlib
+    # _path = r"D:\MyFile\arc\venv\notisumma\extract\KB24A020"
+    # fol = pathlib.Path(_path)
+    # print(has_conclusion_file(fol))
+
+    # files = ['D:\\MyFile\\arc\\venv\\notisumma\\extract\\KB24A020\\不具合.txt', 'D:\\MyFile\\arc\\venv\\notisumma\\extract\\KB24A020\\不具合情報一.xlsx']
+    # result = have_xl_file(files)
+    # print(result)
     # filepath = input("target file path:")
     # check_file_encode(filepath)
 

@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import sys
 import openpyxl
 import datetime as dt
 
@@ -7,11 +8,27 @@ import datetime as dt
 Excelファイルのデータを読み込む
 memo:作成中
 '''
+def read_conclusionXL(file_path):
+    wb = openpyxl.load_workbook(file_path)
+    ws = wb.worksheets[0]
+    _temp_last_row_num = 100
+    _read_data_list = []
 
+    for _row_cnt in range(2, _temp_last_row_num):
+        if ws.cell(_row_cnt, 1).value is None:
+            break
+        
+        _temp_dict = {}
+        _temp_dict["title"] = ws.cell(_row_cnt,2).value.strip()
+        _temp_dict["incident"] = ws.cell(_row_cnt,3).value.strip()
+        _temp_dict["cause_and_solution"] = ws.cell(_row_cnt,4).value.strip()
+        _read_data_list.append(_temp_dict)
+
+    return _read_data_list
 
 
 '''
-テキスデータをExcelファイルに出力する
+テキストデータをExcelファイルに出力する
 memo:
 '''
 def create_xlbook(list_read_data,base_xlfile):
@@ -69,5 +86,6 @@ def create_xlbook(list_read_data,base_xlfile):
         raise Exception('不明なエラーが発生しました。')
 
 if __name__ == '__main__':
-    xlfile = r"D:\MyFile\arc\venv\notisumma\extract\test.xlsx"
-    readxl(xlfile)
+    xlfile = r"D:\MyFile\arc\venv\notisumma\extract\KB24A020\不具合情報一覧.xlsx"
+    data = read_conclusionXL(xlfile)
+    print(data)

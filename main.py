@@ -46,17 +46,19 @@ if __name__ == '__main__':
     
     list_read_data = []
     for folder in unzip_folders:
-        files = sabmethods.get_filepath_list(str(folder),_txt_extension,_xl_extension)
-    
-        # フォルダ内にExcelファイルが存在する場合はExcelファイルからデータを取得する
-        
 
-        for file in files:
-            if file.endswith('.txt'):
-                list_read_data.append(readtxt.read_text(file))
-                
+        # まとめExcelファイルの有無により取得元を分岐(ない場合はテキストファイル)
+        if sabmethods.has_conclusion_file(folder):
+            pass
+
+
+        else:
+            # 処理対象拡張子のファイルパスを取得
+            files = sabmethods.get_filepath_list(str(folder), _txt_extension)
+            for file in files:
+                if file.endswith('.txt'):
+                    list_read_data.append(readtxt.read_text(file))
             
-    # test
     try:
         manageXL.create_xlbook(list_read_data,_base_xlfile)
     except Exception as exc:
