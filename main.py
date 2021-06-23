@@ -3,6 +3,7 @@ import os
 import sys
 import pathlib
 
+import setting
 import unzip
 import sabmethods
 import readtxt
@@ -10,14 +11,14 @@ import manageXL
 
 # init
 if __name__ == '__main__':
-    _comp_extension = 'zip'
-    _txt_extension = 'txt'
-    _xl_extension = 'xlsx'
-    _dl_zip_dirname = 'sample'
-    _extract_target = 'extract'
-    _password = 'password'
+    _comp_extension = setting.COMP_EXTENSION
+    _txt_extension = setting.TXT_EXTENSION
+    _xl_extension = setting.XL_EXTENSION
+    _dl_zip_dirname = setting.DL_ZIP_DIRNAME
+    _extract_target = setting.EXTRACT_TARGET_DIRNAME
+    _password = setting.PASSWORD
     _current_dir = os.getcwd()
-    _base_xlfile = os.path.join(os.getcwd(),'sample\\POS関連情報.xlsx')
+    _base_xlfile = os.path.join(os.getcwd(), _dl_zip_dirname, setting.UPDATE_TARGET_XLFILE)
 
     # zipファイル格納先パスを作成
     zip_dir = os.path.join(_current_dir, _dl_zip_dirname)
@@ -45,14 +46,19 @@ if __name__ == '__main__':
     
     list_read_data = []
     for folder in unzip_folders:
-        files = sabmethods.get_filepath_list(str(folder),_txt_extension,_xl_extension)
 
-        for file in files:
-            if file.endswith('.txt'):
-                list_read_data.append(readtxt.read_text(file))
-                
+        # まとめExcelファイルの有無により取得元を分岐(ない場合はテキストファイル)
+        if sabmethods.has_conclusion_file(folder):
+            pass
+
+
+        else:
+            # 処理対象拡張子のファイルパスを取得
+            files = sabmethods.get_filepath_list(str(folder), _txt_extension)
+            for file in files:
+                if file.endswith('.txt'):
+                    list_read_data.append(readtxt.read_text(file))
             
-    # test
     try:
         manageXL.create_xlbook(list_read_data,_base_xlfile)
     except Exception as exc:
